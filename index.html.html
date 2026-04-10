@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト管理</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Helvetica Neue',Arial,sans-serif;background:#f4f4f0;color:#1a1a1a;min-height:100vh}
+.app{max-width:960px;margin:0 auto;padding:1rem}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#1a1a1a;border-radius:12px;margin-bottom:1rem}
+.header-title{color:#fff;font-size:14px;font-weight:600;letter-spacing:0.5px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#4caf50;flex-shrink:0}
+.sync-dot.off{background:#888}
+.sync-label{font-size:11px;color:#aaa;display:flex;align-items:center;gap:6px}
+
+/* Lock bar */
+.lock-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border-radius:10px;margin-bottom:1rem;border:1px solid #e8e8e4;font-size:13px}
+.lock-bar input{padding:6px 10px;font-size:13px;border:1px solid #ddd;border-radius:7px;background:#f8f8f6;color:#1a1a1a;outline:none;width:110px}
+.admin-badge{font-size:11px;padding:3px 10px;border-radius:99px;background:#e8f5e9;color:#2e7d32;font-weight:600;border:1px solid #c8e6c9}
+.lock-err{font-size:12px;color:#c62828;display:none}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;background:#e8e8e4;border-radius:10px;padding:3px;margin-bottom:1rem}
+.tab{flex:1;padding:8px 4px;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;color:#888;border-radius:8px;transition:all 0.15s;text-align:center}
+.tab.active{background:#fff;color:#1a1a1a;box-shadow:0 1px 3px rgba(0,0,0,0.1)}
+.tab.admin-tab{display:none}
+.tab.admin-tab.visible{display:block}
+.panel{display:none}.panel.active{display:block}
+
+/* Buttons */
+.btn{padding:7px 14px;font-size:12px;font-weight:600;border:1.5px solid #ddd;background:#fff;color:#1a1a1a;border-radius:8px;cursor:pointer;transition:background 0.12s}
+.btn:hover{background:#f4f4f0}
+.btn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary:hover{background:#333}
+.btn.sm{padding:4px 10px;font-size:11px}
+.btn.danger{color:#c62828;border-color:#ffcdd2}
+.btn.danger:hover{background:#ffebee}
+
+/* Section */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-title{font-size:14px;font-weight:700}
+.week-nav{display:flex;align-items:center;gap:6px}
+.week-nav button{background:#fff;border:1px solid #ddd;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:13px;color:#666;display:flex;align-items:center;justify-content:center}
+.week-nav button:hover{background:#f4f4f0}
+.week-label{font-size:12px;color:#666;min-width:140px;text-align:center;font-weight:500}
+
+/* Tables */
+.avail-table,.shift-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e8e8e4}
+.avail-table th,.avail-table td,.shift-table th,.shift-table td{border:1px solid #e8e8e4;padding:0;text-align:center}
+.avail-table th,.shift-table th{padding:8px 4px;font-size:11px;font-weight:700;color:#666;background:#f8f8f6;letter-spacing:0.3px}
+.th-sun{color:#c62828 !important}.th-sat{color:#1565c0 !important}
+.name-cell{text-align:left !important;padding:8px 12px !important;font-size:12px;font-weight:600;white-space:nowrap;min-width:88px;background:#fafaf8}
+.mark-btn{width:100%;height:38px;border:none;background:transparent;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:background 0.1s}
+.mark-btn:hover{background:#f4f4f0}
+.mo{color:#1565c0}.mt{color:#e65100}.mx{color:#c62828}
+
+/* Staff */
+.staff-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.staff-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#fff;border:1px solid #e8e8e4;border-radius:10px}
+.avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.rbadge{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600}
+.ra{background:#ede7f6;color:#4527a0;border:1px solid #d1c4e9}
+.rs{background:#e8f5e9;color:#2e7d32;border:1px solid #c8e6c9}
+
+/* Shift select */
+.shift-sel{width:90%;font-size:11px;padding:3px 2px;border:1px solid #ddd;border-radius:5px;background:#fff;color:#1a1a1a;outline:none;cursor:pointer;font-weight:500}
+.shift-sel:focus{border-color:#1a1a1a}
+.shift-sel:disabled{opacity:0.3;cursor:not-allowed;background:transparent;border-color:transparent}
+
+/* Shift tags */
+.shift-tag{font-size:11px;padding:2px 8px;border-radius:5px;font-weight:700}
+.sm-k{background:#e8f5e9;color:#1b5e20}
+.sm-h{background:#fff3e0;color:#bf360c}
+.sm-s{background:#e3f2fd;color:#0d47a1}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.stat-card{background:#fff;border-radius:10px;padding:10px 14px;border:1px solid #e8e8e4}
+.stat-label{font-size:10px;color:#888;margin-bottom:3px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase}
+.stat-val{font-size:20px;font-weight:700}
+
+/* Legend */
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:#666;font-weight:500}
+.legdot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* Notif */
+.notif{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:99px;font-size:12px;font-weight:600;opacity:0;transition:opacity 0.3s;z-index:999;pointer-events:none;white-space:nowrap}
+.notif.show{opacity:1}
+
+/* Add row */
+.add-row{display:flex;gap:8px;flex-wrap:wrap}
+.add-row input,.add-row select{padding:7px 10px;font-size:12px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a1a;outline:none;font-weight:500}
+.hint{font-size:11px;color:#999;margin-top:6px}
+.pub-status{margin-top:10px;font-size:12px;font-weight:600}
+
+.cell-x{background:#ffebee !important}
+.bg-sun{background:#fff8f8 !important}
+.bg-sat{background:#f0f4ff !important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <span class="header-title">シフト管理</span>
+    <div class="sync-label">
+      <div class="sync-dot off" id="syncDot"></div>
+      <span id="syncLabel">接続中...</span>
+    </div>
+  </div>
+
+  <div class="lock-bar">
+    <span style="color:#888;font-size:12px">管理者：</span>
+    <div id="lockOff" style="display:flex;align-items:center;gap:8px">
+      <input type="password" id="pwInput" placeholder="パスワード" onkeydown="if(event.key==='Enter')tryLogin()" />
+      <button class="btn sm primary" onclick="tryLogin()">ログイン</button>
+      <span class="lock-err" id="lockErr">パスワードが違います</span>
+    </div>
+    <div id="lockOn" style="display:none;align-items:center;gap:8px">
+      <span class="admin-badge">管理者ログイン中</span>
+      <button class="btn sm danger" onclick="logout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('avail')">出欠入力</button>
+    <button class="tab" onclick="showTab('view')">シフト確認</button>
+    <button class="tab admin-tab" onclick="showTab('staff')">スタッフ管理</button>
+    <button class="tab admin-tab" onclick="showTab('shift')">シフト作成</button>
+  </div>
+
+  <div id="tab-avail" class="panel active">
+    <div class="sec-head">
+      <span class="sec-title">出欠入力</span>
+      <div class="week-nav">
+        <button onclick="changeWeek(-1)">‹</button>
+        <span class="week-label" id="wlAvail"></span>
+        <button onclick="changeWeek(1)">›</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#888;margin-bottom:8px;font-weight:500">タップで切り替え：○ 出勤可　△ 応相談　× 不可</p>
+    <div style="overflow-x:auto"><table class="avail-table" id="availTable"></table></div>
+  </div>
+
+  <div id="tab-view" class="panel">
+    <div class="sec-head">
+      <span class="sec-title">シフト確認</span>
+      <div class="week-nav">
+        <button onclick="changeWeek(-1)">‹</button>
+        <span class="week-label" id="wlView"></span>
+        <button onclick="changeWeek(1)">›</button>
+      </div>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="legend">
+      <div class="leg"><div class="legdot" style="background:#c8e6c9"></div>収穫</div>
+      <div class="leg"><div class="legdot" style="background:#ffe0b2"></div>小屋</div>
+      <div class="leg"><div class="legdot" style="background:#bbdefb"></div>選別</div>
+    </div>
+    <div style="overflow-x:auto"><table class="shift-table" id="viewTable"></table></div>
+    <div class="pub-status" id="pubStatus"></div>
+  </div>
+
+  <div id="tab-staff" class="panel">
+    <div class="sec-head"><span class="sec-title">スタッフ管理</span></div>
+    <div class="staff-list" id="staffList"></div>
+    <div class="add-row">
+      <input id="newName" placeholder="名前" maxlength="10" />
+      <select id="newRole">
+        <option value="staff">スタッフ</option>
+        <option value="admin">管理者</option>
+      </select>
+      <button class="btn primary" onclick="addStaff()">追加</button>
+    </div>
+    <p class="hint">管理者はパスワードでシフト作成・スタッフ管理が可能</p>
+  </div>
+
+  <div id="tab-shift" class="panel">
+    <div class="sec-head">
+      <span class="sec-title">シフト作成</span>
+      <div class="week-nav">
+        <button onclick="changeWeek(-1)">‹</button>
+        <span class="week-label" id="wlShift"></span>
+        <button onclick="changeWeek(1)">›</button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#888;margin-bottom:8px;font-weight:500">収穫 / 小屋 / 選別 から選択　× の欄は入力不可</p>
+    <div style="overflow-x:auto"><table class="shift-table" id="shiftTable"></table></div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" onclick="publishShift()">シフトを公開</button>
+      <button class="btn" onclick="autoFill()">自動入力（出欠参照）</button>
+      <button class="btn danger" onclick="clearShift()">クリア</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCFFkc73PrT7WtrDeW70SfCMt_jduevMj4",
+  authDomain: "shiftapp-f9eef.firebaseapp.com",
+  databaseURL: "https://shiftapp-f9eef-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shiftapp-f9eef",
+  storageBucket: "shiftapp-f9eef.firebasestorage.app",
+  messagingSenderId: "711036935804",
+  appId: "1:711036935804:web:5aead18d48305e5d64f3f9"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
+
+const ADMIN_PW = '0412';
+const DAYS = ['日','月','火','水','木','金','土'];
+const PRESETS = ['','収穫','小屋','選別'];
+const AVS = ['#bbdefb','#c8e6c9','#ffccbc','#d1c4e9','#dcedc8','#ffe0b2'];
+const ATC = ['#0d47a1','#1b5e20','#bf360c','#4527a0','#33691e','#bf360c'];
+
+let S = {
+  isAdmin: false, weekOffset: 0,
+  staff: [], avail: {}, shifts: {}, published: {}, nextId: 1
+};
+
+// Firebase接続状態
+document.getElementById('syncDot').className = 'sync-dot';
+document.getElementById('syncLabel').textContent = 'リアルタイム同期中';
+
+// Firebaseからリアルタイムで全データ受信
+onValue(ref(db, '/'), (snapshot) => {
+  const data = snapshot.val() || {};
+  S.staff = data.staff ? Object.values(data.staff).sort((a,b)=>a.id-b.id) : [];
+  S.avail = data.avail || {};
+  S.shifts = data.shifts || {};
+  S.published = data.published || {};
+  // nextIdを最大IDから計算
+  if (S.staff.length > 0) {
+    S.nextId = Math.max(...S.staff.map(x=>x.id)) + 1;
+  }
+  renderAll();
+});
+
+function saveStaff() {
+  const obj = {};
+  S.staff.forEach(s => { obj[s.id] = s; });
+  set(ref(db, 'staff'), obj);
+}
+function saveAvail(sid, ds, v) {
+  set(ref(db, `avail/${sid}/${ds}`), v);
+}
+function saveShift(wkey, sid, ds, v) {
+  set(ref(db, `shifts/${wkey}/${sid}/${ds}`), v || null);
+}
+function savePublished(wkey, v) {
+  set(ref(db, `published/${wkey}`), v);
+}
+
+function getWeekDates(off) {
+  const now = new Date();
+  const sun = new Date(now);
+  sun.setDate(now.getDate() - now.getDay() + off * 7);
+  return Array.from({length:7}, (_,i) => { const d=new Date(sun); d.setDate(sun.getDate()+i); return d; });
+}
+function dk(d) { return d.toISOString().slice(0,10); }
+function wk(off) { return dk(getWeekDates(off)[0]); }
+function fmtWeek(off) {
+  const d = getWeekDates(off);
+  return `${d[0].getMonth()+1}/${d[0].getDate()} 〜 ${d[6].getMonth()+1}/${d[6].getDate()}`;
+}
+
+function showNotif(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+function tryLogin() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    S.isAdmin = true;
+    document.getElementById('lockOff').style.display = 'none';
+    document.getElementById('lockOn').style.display = 'flex';
+    document.getElementById('lockErr').style.display = 'none';
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.add('visible'));
+    showNotif('管理者モードでログインしました');
+    renderAll();
+  } else {
+    document.getElementById('lockErr').style.display = 'inline';
+    document.getElementById('pwInput').value = '';
+  }
+}
+
+function logout() {
+  S.isAdmin = false;
+  document.getElementById('lockOff').style.display = 'flex';
+  document.getElementById('lockOn').style.display = 'none';
+  document.getElementById('pwInput').value = '';
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('visible'));
+  if (document.querySelector('.tab.admin-tab.active')) showTab('avail');
+  showNotif('ログアウトしました');
+  renderAll();
+}
+
+function showTab(name) {
+  if ((name==='staff'||name==='shift') && !S.isAdmin) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  const idx = {avail:0,view:1,staff:2,shift:3}[name];
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  renderAll();
+}
+window.showTab = showTab;
+
+function changeWeek(d) { S.weekOffset += d; renderAll(); }
+window.changeWeek = changeWeek;
+
+function getAvail(sid, ds) { return (S.avail[sid]||{})[ds]||''; }
+function getShift(sid, ds) { const w=wk(S.weekOffset); return ((S.shifts[w]||{})[sid]||{})[ds]||''; }
+
+function cycleAvail(sid, ds) {
+  const c = getAvail(sid, ds);
+  const v = c===''?'○':c==='○'?'△':c==='△'?'×':'';
+  saveAvail(sid, ds, v);
+}
+window.cycleAvail = cycleAvail;
+
+function markSym(v) {
+  if(v==='○') return '<span class="mo">○</span>';
+  if(v==='△') return '<span class="mt">△</span>';
+  if(v==='×') return '<span class="mx">×</span>';
+  return '<span style="color:#ccc;font-size:11px">—</span>';
+}
+
+function shiftCls(v) {
+  if(v==='収穫') return 'sm-k';
+  if(v==='小屋') return 'sm-h';
+  if(v==='選別') return 'sm-s';
+  return '';
+}
+
+function makeThead(dates) {
+  return `<tr><th style="min-width:80px;text-align:left;padding:8px 10px">名前</th>${dates.map((d,i) => {
+    const cls = i===0?'th-sun':i===6?'th-sat':'';
+    return `<th class="${cls}">${DAYS[i]}<br><span style="font-weight:400;font-size:10px">${d.getMonth()+1}/${d.getDate()}</span></th>`;
+  }).join('')}</tr>`;
+}
+
+function renderAll() {
+  document.getElementById('wlAvail').textContent = fmtWeek(S.weekOffset);
+  document.getElementById('wlView').textContent  = fmtWeek(S.weekOffset);
+  document.getElementById('wlShift').textContent = fmtWeek(S.weekOffset);
+  renderStaffList();
+  renderAvailTable();
+  renderShiftTable();
+  renderViewTable();
+}
+
+function renderStaffList() {
+  document.getElementById('staffList').innerHTML = S.staff.map((s,i) => `
+    <div class="staff-item">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="avatar" style="background:${AVS[i%AVS.length]};color:${ATC[i%ATC.length]}">${s.name[0]}</div>
+        <span style="font-size:13px;font-weight:600">${s.name}</span>
+        <span class="rbadge ${s.role==='admin'?'ra':'rs'}">${s.role==='admin'?'管理者':'スタッフ'}</span>
+      </div>
+      <button class="btn sm danger" onclick="removeStaff(${s.id})">削除</button>
+    </div>`).join('') || '<p style="color:#aaa;font-size:12px;padding:8px">スタッフがいません</p>';
+}
+
+function addStaff() {
+  const n = document.getElementById('newName').value.trim();
+  if (!n) return;
+  const newStaff = {id: S.nextId++, name: n, role: document.getElementById('newRole').value};
+  S.staff.push(newStaff);
+  document.getElementById('newName').value = '';
+  saveStaff();
+  showNotif(`「${n}」を追加しました`);
+}
+window.addStaff = addStaff;
+
+function removeStaff(id) {
+  const s = S.staff.find(x => x.id===id);
+  if (!s) return;
+  S.staff = S.staff.filter(x => x.id!==id);
+  saveStaff();
+  showNotif(`「${s.name}」を削除しました`);
+}
+window.removeStaff = removeStaff;
+
+function renderAvailTable() {
+  if (!S.staff.length) {
+    document.getElementById('availTable').innerHTML = '<tr><td style="padding:20px;color:#aaa;font-size:12px">スタッフを追加してください</td></tr>';
+    return;
+  }
+  const dates = getWeekDates(S.weekOffset);
+  const rows = S.staff.map(s => {
+    const cells = dates.map((d,i) => {
+      const key = dk(d);
+      const v = getAvail(s.id, key);
+      const bg = i===0?'class="bg-sun"':i===6?'class="bg-sat"':'';
+      return `<td ${bg}><button class="mark-btn" onclick="cycleAvail(${s.id},'${key}')">${markSym(v)}</button></td>`;
+    }).join('');
+    return `<tr><td class="name-cell">${s.name}</td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('availTable').innerHTML = `<thead>${makeThead(dates)}</thead><tbody>${rows}</tbody>`;
+}
+
+function onShiftChange(sid, ds, v) {
+  const w = wk(S.weekOffset);
+  saveShift(w, sid, ds, v);
+}
+window.onShiftChange = onShiftChange;
+
+function renderShiftTable() {
+  if (!S.isAdmin) return;
+  if (!S.staff.length) {
+    document.getElementById('shiftTable').innerHTML = '<tr><td style="padding:20px;color:#aaa;font-size:12px">スタッフを追加してください</td></tr>';
+    return;
+  }
+  const dates = getWeekDates(S.weekOffset);
+  const rows = S.staff.map(s => {
+    const cells = dates.map((d,i) => {
+      const key = dk(d);
+      const av = getAvail(s.id, key);
+      const locked = av === '×';
+      const v = locked ? '' : getShift(s.id, key);
+      const bg = locked ? 'class="cell-x"' : i===0 ? 'class="bg-sun"' : i===6 ? 'class="bg-sat"' : '';
+      if (locked) {
+        return `<td ${bg}><div style="display:flex;align-items:center;justify-content:center;min-height:36px"><span class="mx" style="font-size:14px">×</span></div></td>`;
+      }
+      const opts = PRESETS.map(p => `<option value="${p}" ${v===p?'selected':''}>${p===''?'—':p}</option>`).join('');
+      return `<td ${bg} style="padding:3px"><select class="shift-sel" onchange="onShiftChange(${s.id},'${key}',this.value)">${opts}</select></td>`;
+    }).join('');
+    return `<tr><td class="name-cell">${s.name}</td>${cells}</tr>`;
+  }).join('');
+  document.getElementById('shiftTable').innerHTML = `<thead>${makeThead(dates)}</thead><tbody>${rows}</tbody>`;
+}
+
+function autoFill() {
+  const dates = getWeekDates(S.weekOffset);
+  const w = wk(S.weekOffset);
+  S.staff.forEach(s => dates.forEach(d => {
+    const key = dk(d);
+    const av = getAvail(s.id, key);
+    if (av === '○') saveShift(w, s.id, key, '収穫');
+  }));
+  showNotif('出欠をもとに自動入力しました');
+}
+window.autoFill = autoFill;
+
+function clearShift() {
+  const w = wk(S.weekOffset);
+  set(ref(db, `shifts/${w}`), null);
+  showNotif('クリアしました');
+}
+window.clearShift = clearShift;
+
+function publishShift() {
+  const w = wk(S.weekOffset);
+  savePublished(w, true);
+  showNotif('シフトを公開しました ✓');
+}
+window.publishShift = publishShift;
+
+function renderViewTable() {
+  const dates = getWeekDates(S.weekOffset);
+  const w = wk(S.weekOffset);
+  const isPub = S.published[w];
+  let total = 0;
+  S.staff.forEach(s => dates.forEach(d => { if(getShift(s.id,dk(d))) total++; }));
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">スタッフ</div><div class="stat-val">${S.staff.length}</div></div>
+    <div class="stat-card"><div class="stat-label">日数</div><div class="stat-val">${dates.length}</div></div>
+    <div class="stat-card"><div class="stat-label">入力済み</div><div class="stat-val">${total}</div></div>`;
+
+  if (!S.staff.length) {
+    document.getElementById('viewTable').innerHTML = '<tr><td style="padding:20px;color:#aaa;font-size:12px">スタッフを追加してください</td></tr>';
+    return;
+  }
+
+  const rows = S.staff.map(s => {
+    const cells = dates.map((d,i) => {
+      const key = dk(d);
+      const av = getAvail(s.id, key);
+      const locked = av === '×';
+      const v = locked ? '' : getShift(s.id, key);
+      const bg = locked ? 'class="cell-x"' : i===0 ? 'class="bg-sun"' : i===6 ? 'class="bg-sat"' : '';
+      if (locked) return `<td ${bg}><div style="display:flex;align-items:center;justify-content:center;min-height:34px"><span class="mx" style="font-size:12px">×</span></div></td>`;
+      if (!v) return `<td ${bg}><div style="display:flex;align-items:center;justify-content:center;min-height:34px"><span style="color:#ccc;font-size:10px">—</span></div></td>`;
+      return `<td ${bg}><div style="display:flex;align-items:center;justify-content:center;min-height:34px"><span class="shift-tag ${shiftCls(v)}">${v}</span></div></td>`;
+    }).join('');
+    return `<tr><td class="name-cell">${s.name}</td>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('viewTable').innerHTML = `<thead>${makeThead(dates)}</thead><tbody>${rows}</tbody>`;
+  const ps = document.getElementById('pubStatus');
+  ps.textContent = isPub ? '✓ このシフトは公開済みです' : '（まだ公開されていません）';
+  ps.style.color = isPub ? '#2e7d32' : '#aaa';
+}
+
+window.tryLogin = tryLogin;
+window.logout = logout;
+</script>
+</body>
+</html>
